@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PHP Metrics Exporter v1.0</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f9f9f9;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+      color: #333;
+    }
+    h1 {
+      color: #005f8d;
+    }
+    ul {
+      padding-left: 1.5rem;
+    }
+    a {
+      color: #007acc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .desc {
+      margin: 1rem 0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<h1>PHP Metrics Exporter v1.0</h1>
+<p class="desc">
+  This lightweight HTTP service exposes Prometheus-compatible metrics from a PHP backend.
+  It's designed to be scraped periodically by monitoring systems like Prometheus, providing
+  real-time insights into application performance and health.
+</p>
+<h2>Endpoints</h2>
+<ul>
+  <li><a href="/metrics">/metrics</a> – Exposes the metrics in Prometheus format</li>
+  <li><a href="/status">/status</a> – Basic health/status page for the exporter</li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,19 @@
+services:
+  php-fpm:
+    image: framjet/php:8.4-prod
+    container_name: fpm
+    volumes:
+      - "metrics:/shared/"
+
+  php-metrics-exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: php-metrics-exporter
+    volumes:
+      - "metrics:/shared/"
+    ports:
+      - 1993:80
+
+volumes:
+  metrics:
