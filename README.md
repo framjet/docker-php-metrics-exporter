@@ -156,42 +156,60 @@ The service exposes the following endpoints:
 
 ## Metrics
 
+The exporter follows Prometheus naming conventions with appropriate suffixes for different metric types.
+
 ### FPM Pool Metrics
 
-- `php_fpm_start_time` - Start time of the PHP-FPM pool
-- `php_fpm_start_since` - Seconds since start of the PHP-FPM pool
-- `php_fpm_accepted_conn` - Total accepted connections
+- `php_fpm_start_timestamp_seconds` - Start time of the PHP-FPM pool (Unix timestamp)
+- `php_fpm_uptime_seconds` - Seconds since start of the PHP-FPM pool
+- `php_fpm_accepted_connections_total` - Total accepted connections (counter)
 - `php_fpm_listen_queue` - Current listen queue size
-- `php_fpm_max_listen_queue` - Maximum listen queue size
-- `php_fpm_processes{state="idle|active"}` - Process count by state
-- `php_fpm_total_processes` - Total process count
-- `php_fpm_max_active_processes` - Maximum active processes
-- `php_fpm_max_children_reached` - Max children reached
-- `php_fpm_slow_requests` - Slow request count
-- `php_fpm_memory_peak` - Peak memory usage
+- `php_fpm_max_listen_queue` - Maximum listen queue size reached
+- `php_fpm_listen_queue_length` - Listen queue length
+- `php_fpm_processes{state="idle|active"}` - Number of processes by state
+- `php_fpm_processes_total` - Total number of processes
+- `php_fpm_max_active_processes` - Maximum number of active processes reached
+- `php_fpm_max_children_reached_total` - Number of times max children limit was reached (counter)
+- `php_fpm_slow_requests_total` - Total number of slow requests (counter)
+- `php_fpm_memory_peak_bytes` - Peak memory usage in bytes
 
 ### FPM Process Metrics
 
-- `php_fpm_process_start_time` - Process start time
-- `php_fpm_process_start_since` - Seconds since process start
-- `php_fpm_process_requests` - Number of requests served
-- `php_fpm_process_request_duration` - Current request duration
-- `php_fpm_process_request_length` - Request content length
-- `php_fpm_process_last_request_cpu` - CPU usage of last request
-- `php_fpm_process_last_request_memory` - Memory usage of last request
+- `php_fpm_process_start_timestamp_seconds` - Process start time (Unix timestamp)
+- `php_fpm_process_uptime_seconds` - Seconds since process start
+- `php_fpm_process_requests_total` - Total number of requests served (counter)
+- `php_fpm_process_request_duration_seconds` - Current request duration in seconds
+- `php_fpm_process_request_length_bytes` - Request content length in bytes
+- `php_fpm_process_last_request_cpu_percent` - CPU percentage used by last request (0-100)
+- `php_fpm_process_last_request_memory_bytes` - Memory usage of last request in bytes
 
 ### OPCache Metrics
 
-- `php_opcache_memory_bytes{state="used|free|wasted"}` - OPcache memory usage
-- `php_opcache_wasted_percentage` - Current wasted memory percentage
-- `php_opcache_interned_strings_memory_bytes{state="used|free"}` - Interned strings memory usage
-- `php_opcache_cached_scripts` - Number of cached scripts
-- `php_opcache_hits` - Cache hits
-- `php_opcache_misses` - Cache misses
-- `php_opcache_hit_rate` - Cache hit rate
-- `php_opcache_restarts{type="oom|hash|manual"}` - Restart count by type
-- `php_opcache_jit_buffer_size` - JIT buffer size
-- `php_opcache_jit_buffer_free` - JIT buffer free space
+- `php_opcache_memory_bytes{state="used|free|wasted"}` - OPcache memory usage in bytes
+- `php_opcache_wasted_memory_ratio` - Current wasted memory ratio (0-1)
+- `php_opcache_interned_strings_memory_bytes{state="used|free"}` - Interned strings memory usage in bytes
+- `php_opcache_interned_strings_buffer_size_bytes` - Interned strings buffer size in bytes
+- `php_opcache_interned_strings_total` - Total number of interned strings
+- `php_opcache_cached_scripts_total` - Total number of cached scripts
+- `php_opcache_cached_keys_total` - Total number of cached keys
+- `php_opcache_max_cached_keys` - Maximum number of cached keys allowed
+- `php_opcache_hits_total` - Total cache hits (counter)
+- `php_opcache_misses_total` - Total cache misses (counter)
+- `php_opcache_start_timestamp_seconds` - OPcache start time (Unix timestamp)
+- `php_opcache_last_restart_timestamp_seconds` - Last restart time (Unix timestamp)
+- `php_opcache_restarts_total{type="oom|hash|manual"}` - Total restart count by type (counter)
+- `php_opcache_blacklist_misses_total` - Total blacklist misses (counter)
+- `php_opcache_blacklist_miss_ratio` - Blacklist miss ratio (0-1)
+- `php_opcache_hit_ratio` - Cache hit ratio (0-1)
+- `php_opcache_jit_buffer_size_bytes` - JIT buffer size in bytes
+- `php_opcache_jit_buffer_free_bytes` - JIT buffer free space in bytes
+
+### OPCache Script Metrics
+
+- `php_opcache_script_hits_total` - Total script cache hits (counter)
+- `php_opcache_script_memory_bytes` - Script memory consumption in bytes
+- `php_opcache_script_last_used_timestamp_seconds` - Script last used timestamp (Unix timestamp)
+- `php_opcache_script_revalidate_timestamp_seconds` - Script revalidate timestamp (Unix timestamp)
 
 ## How It Works
 

@@ -64,24 +64,46 @@ class PrometheusMetricsExporter
         ];
 
         if ($options['pool'] ?? true) {
-            $this->addMetric($prefix . 'start_time', $fpmStatus['start-time'] ?? -1, $baseLabels, 'Start time of the PHP-FPM pool');
-            $this->addMetric($prefix . 'start_since', $fpmStatus['start-since'] ?? -1, $baseLabels, 'Seconds since start of the PHP-FPM pool');
-            $this->addMetric($prefix . 'accepted_conn', $fpmStatus['accepted-conn'] ?? -1, $baseLabels, 'Total accepted connections');
-            $this->addMetric($prefix . 'listen_queue', $fpmStatus['listen-queue'] ?? -1, $baseLabels, 'Current listen queue size');
-            $this->addMetric($prefix . 'max_listen_queue', $fpmStatus['max-listen-queue'] ?? -1, $baseLabels, 'Maximum listen queue size');
-            $this->addMetric($prefix . 'listen_queue_len', $fpmStatus['listen-queue-len'] ?? -1, $baseLabels, 'Listen queue length');
+            // Use _timestamp suffix for Unix timestamps
+            $this->addMetric($prefix . 'start_timestamp_seconds', $fpmStatus['start-time'] ?? -1,
+                $baseLabels, 'Start time of the PHP-FPM pool (Unix timestamp)');
 
-            // Process counts by state
+            // Use _seconds suffix for durations
+            $this->addMetric($prefix . 'uptime_seconds', $fpmStatus['start-since'] ?? -1,
+                $baseLabels, 'Seconds since start of the PHP-FPM pool');
+
+            // Use _total suffix for counters
+            $this->addMetric($prefix . 'accepted_connections_total', $fpmStatus['accepted-conn'] ?? -1,
+                $baseLabels, 'Total accepted connections', 'counter');
+
+            // Queue metrics don't need special suffixes as they're counts
+            $this->addMetric($prefix . 'listen_queue', $fpmStatus['listen-queue'] ?? -1,
+                $baseLabels, 'Current listen queue size');
+            $this->addMetric($prefix . 'max_listen_queue', $fpmStatus['max-listen-queue'] ?? -1,
+                $baseLabels, 'Maximum listen queue size reached');
+            $this->addMetric($prefix . 'listen_queue_length', $fpmStatus['listen-queue-len'] ?? -1,
+                $baseLabels, 'Listen queue length');
+
+            // Process counts - no special suffix needed
             $this->addMetric($prefix . 'processes', $fpmStatus['idle-processes'] ?? -1,
-                array_merge($baseLabels, ['state' => 'idle']), 'Process count by state');
+                array_merge($baseLabels, ['state' => 'idle']), 'Number of processes by state');
             $this->addMetric($prefix . 'processes', $fpmStatus['active-processes'] ?? -1,
-                array_merge($baseLabels, ['state' => 'active']), 'Process count by state');
+                array_merge($baseLabels, ['state' => 'active']), 'Number of processes by state');
 
-            $this->addMetric($prefix . 'total_processes', $fpmStatus['total-processes'] ?? -1, $baseLabels, 'Total process count');
-            $this->addMetric($prefix . 'max_active_processes', $fpmStatus['max-active-processes'] ?? -1, $baseLabels, 'Maximum active processes');
-            $this->addMetric($prefix . 'max_children_reached', $fpmStatus['max-children-reached'] ?? -1, $baseLabels, 'Max children reached');
-            $this->addMetric($prefix . 'slow_requests', $fpmStatus['slow-requests'] ?? -1, $baseLabels, 'Slow request count');
-            $this->addMetric($prefix . 'memory_peak', $fpmStatus['memory-peak'] ?? -1, $baseLabels, 'Peak memory usage');
+            $this->addMetric($prefix . 'processes_total', $fpmStatus['total-processes'] ?? -1,
+                $baseLabels, 'Total number of processes');
+            $this->addMetric($prefix . 'max_active_processes', $fpmStatus['max-active-processes'] ?? -1,
+                $baseLabels, 'Maximum number of active processes reached');
+            $this->addMetric($prefix . 'max_children_reached_total', $fpmStatus['max-children-reached'] ?? -1,
+                $baseLabels, 'Number of times max children limit was reached', 'counter');
+
+            // Use _total suffix for counters
+            $this->addMetric($prefix . 'slow_requests_total', $fpmStatus['slow-requests'] ?? -1,
+                $baseLabels, 'Total number of slow requests', 'counter');
+
+            // Use _bytes suffix for memory
+            $this->addMetric($prefix . 'memory_peak_bytes', $fpmStatus['memory-peak'] ?? -1,
+                $baseLabels, 'Peak memory usage in bytes');
         }
 
         if ($options['processes'] ?? true) {
@@ -97,13 +119,36 @@ class PrometheusMetricsExporter
                     'script' => $proc['script'] ?? 'unknown',
                 ];
 
-                $this->addMetric($prefix . 'process_start_time', $proc['start-time'] ?? -1, $procLabels, 'Process start time');
-                $this->addMetric($prefix . 'process_start_since', $proc['start-since'] ?? -1, $procLabels, 'Seconds since process start');
-                $this->addMetric($prefix . 'process_requests', $proc['requests'] ?? -1, $procLabels, 'Number of requests served');
-                $this->addMetric($prefix . 'process_request_duration', $proc['request-duration'] ?? -1, $procLabels, 'Current request duration');
-                $this->addMetric($prefix . 'process_request_length', $proc['request-length'] ?? -1, $procLabels, 'Request content length');
-                $this->addMetric($prefix . 'process_last_request_cpu', $proc['last-request-cpu'] ?? -1, $procLabels, 'CPU usage of last request');
-                $this->addMetric($prefix . 'process_last_request_memory', $proc['last-request-memory'] ?? -1, $procLabels, 'Memory usage of last request');
+                // Unix timestamp
+                $this->addMetric($prefix . 'process_start_timestamp_seconds', $proc['start-time'] ?? -1,
+                    $procLabels, 'Process start time (Unix timestamp)');
+
+                // Duration in seconds
+                $this->addMetric($prefix . 'process_uptime_seconds', $proc['start-since'] ?? -1,
+                    $procLabels, 'Seconds since process start');
+
+                // Counter
+                $this->addMetric($prefix . 'process_requests_total', $proc['requests'] ?? -1,
+                    $procLabels, 'Total number of requests served', 'counter');
+
+                // Duration in microseconds (convert to seconds for Prometheus)
+                if (isset($proc['request-duration']) && $proc['request-duration'] !== -1) {
+                    $this->addMetric($prefix . 'process_request_duration_seconds',
+                        $proc['request-duration'] / 1000000, // Convert microseconds to seconds
+                        $procLabels, 'Current request duration in seconds');
+                }
+
+                // Bytes
+                $this->addMetric($prefix . 'process_request_length_bytes', $proc['request-length'] ?? -1,
+                    $procLabels, 'Request content length in bytes');
+
+                // CPU percentage (0-100)
+                $this->addMetric($prefix . 'process_last_request_cpu_percent', $proc['last-request-cpu'] ?? -1,
+                    $procLabels, 'CPU percentage used by last request');
+
+                // Memory in bytes
+                $this->addMetric($prefix . 'process_last_request_memory_bytes', $proc['last-request-memory'] ?? -1,
+                    $procLabels, 'Memory usage of last request in bytes');
             }
         }
     }
@@ -133,54 +178,82 @@ class PrometheusMetricsExporter
             'jit_opt_flags' => $jit['opt_flags'] ?? 'unknown',
         ];
 
-        // Memory usage metrics
+        // Memory usage metrics with _bytes suffix
         $memory = $opcacheStatus['memory_usage'] ?? [];
         $this->addMetric($prefix . 'memory_bytes', $memory['used_memory'] ?? -1,
-            array_merge($baseLabels, ['state' => 'used']), 'OPcache memory usage');
+            array_merge($baseLabels, ['state' => 'used']), 'OPcache memory usage in bytes');
         $this->addMetric($prefix . 'memory_bytes', $memory['free_memory'] ?? -1,
-            array_merge($baseLabels, ['state' => 'free']), 'OPcache memory usage');
+            array_merge($baseLabels, ['state' => 'free']), 'OPcache memory usage in bytes');
         $this->addMetric($prefix . 'memory_bytes', $memory['wasted_memory'] ?? -1,
-            array_merge($baseLabels, ['state' => 'wasted']), 'OPcache memory usage');
-        $this->addMetric($prefix . 'wasted_percentage', $memory['current_wasted_percentage'] ?? -1,
-            $baseLabels, 'Current wasted memory percentage');
+            array_merge($baseLabels, ['state' => 'wasted']), 'OPcache memory usage in bytes');
 
-        // Interned strings usage
+        // Use _ratio suffix for percentages (convert percentage to 0-1 ratio)
+        if (isset($memory['current_wasted_percentage']) && $memory['current_wasted_percentage'] !== -1) {
+            $this->addMetric($prefix . 'wasted_memory_ratio',
+                $memory['current_wasted_percentage'] / 100,
+                $baseLabels, 'Current wasted memory ratio (0-1)');
+        }
+
+        // Interned strings usage with proper suffixes
         $internedStrings = $opcacheStatus['interned_strings_usage'] ?? [];
         $this->addMetric($prefix . 'interned_strings_memory_bytes', $internedStrings['used_memory'] ?? -1,
-            array_merge($baseLabels, ['state' => 'used']), 'Interned strings memory usage');
+            array_merge($baseLabels, ['state' => 'used']), 'Interned strings memory usage in bytes');
         $this->addMetric($prefix . 'interned_strings_memory_bytes', $internedStrings['free_memory'] ?? -1,
-            array_merge($baseLabels, ['state' => 'free']), 'Interned strings memory usage');
-        $this->addMetric($prefix . 'interned_strings_buffer_size', $internedStrings['buffer_size'] ?? -1,
-            $baseLabels, 'Interned strings buffer size');
-        $this->addMetric($prefix . 'interned_strings_count', $internedStrings['number_of_strings'] ?? -1,
-            $baseLabels, 'Number of interned strings');
+            array_merge($baseLabels, ['state' => 'free']), 'Interned strings memory usage in bytes');
+        $this->addMetric($prefix . 'interned_strings_buffer_size_bytes', $internedStrings['buffer_size'] ?? -1,
+            $baseLabels, 'Interned strings buffer size in bytes');
+        $this->addMetric($prefix . 'interned_strings_total', $internedStrings['number_of_strings'] ?? -1,
+            $baseLabels, 'Total number of interned strings');
 
-        // Statistics
+        // Statistics with proper suffixes
         $stats = $opcacheStatus['opcache_statistics'] ?? [];
-        $this->addMetric($prefix . 'cached_scripts', $stats['num_cached_scripts'] ?? -1, $baseLabels, 'Number of cached scripts');
-        $this->addMetric($prefix . 'cached_keys', $stats['num_cached_keys'] ?? -1, $baseLabels, 'Number of cached keys');
-        $this->addMetric($prefix . 'max_cached_keys', $stats['max_cached_keys'] ?? -1, $baseLabels, 'Maximum cached keys');
-        $this->addMetric($prefix . 'hits', $stats['hits'] ?? -1, $baseLabels, 'Cache hits');
-        $this->addMetric($prefix . 'start_time', $stats['start_time'] ?? -1, $baseLabels, 'OPcache start time');
-        $this->addMetric($prefix . 'last_restart_time', $stats['last_restart_time'] ?? -1, $baseLabels, 'Last restart time');
+        $this->addMetric($prefix . 'cached_scripts_total', $stats['num_cached_scripts'] ?? -1,
+            $baseLabels, 'Total number of cached scripts');
+        $this->addMetric($prefix . 'cached_keys_total', $stats['num_cached_keys'] ?? -1,
+            $baseLabels, 'Total number of cached keys');
+        $this->addMetric($prefix . 'max_cached_keys', $stats['max_cached_keys'] ?? -1,
+            $baseLabels, 'Maximum number of cached keys allowed');
 
-        // Restart counts by type
-        $this->addMetric($prefix . 'restarts', $stats['oom_restarts'] ?? -1,
-            array_merge($baseLabels, ['type' => 'oom']), 'Restart count by type');
-        $this->addMetric($prefix . 'restarts', $stats['hash_restarts'] ?? -1,
-            array_merge($baseLabels, ['type' => 'hash']), 'Restart count by type');
-        $this->addMetric($prefix . 'restarts', $stats['manual_restarts'] ?? -1,
-            array_merge($baseLabels, ['type' => 'manual']), 'Restart count by type');
+        // Counters with _total suffix
+        $this->addMetric($prefix . 'hits_total', $stats['hits'] ?? -1,
+            $baseLabels, 'Total cache hits', 'counter');
+        $this->addMetric($prefix . 'misses_total', $stats['misses'] ?? -1,
+            $baseLabels, 'Total cache misses', 'counter');
 
-        $this->addMetric($prefix . 'misses', $stats['misses'] ?? -1, $baseLabels, 'Cache misses');
-        $this->addMetric($prefix . 'blacklist_misses', $stats['blacklist_misses'] ?? -1, $baseLabels, 'Blacklist misses');
-        $this->addMetric($prefix . 'blacklist_miss_ratio', $stats['blacklist_miss_ratio'] ?? -1, $baseLabels, 'Blacklist miss ratio');
-        $this->addMetric($prefix . 'hit_rate', $stats['opcache_hit_rate'] ?? -1, $baseLabels, 'Cache hit rate');
+        // Timestamps with _timestamp_seconds suffix
+        $this->addMetric($prefix . 'start_timestamp_seconds', $stats['start_time'] ?? -1,
+            $baseLabels, 'OPcache start time (Unix timestamp)');
+        $this->addMetric($prefix . 'last_restart_timestamp_seconds', $stats['last_restart_time'] ?? -1,
+            $baseLabels, 'Last restart time (Unix timestamp)');
 
-        // JIT metrics
-        $jitStatus = $jit;  // Using the same jit variable from above
-        $this->addMetric($prefix . 'jit_buffer_size', $jitStatus['buffer_size'] ?? -1, $baseLabels, 'JIT buffer size');
-        $this->addMetric($prefix . 'jit_buffer_free', $jitStatus['buffer_free'] ?? -1, $baseLabels, 'JIT buffer free space');
+        // Restart counts with _total suffix
+        $this->addMetric($prefix . 'restarts_total', $stats['oom_restarts'] ?? -1,
+            array_merge($baseLabels, ['type' => 'oom']), 'Total restart count by type', 'counter');
+        $this->addMetric($prefix . 'restarts_total', $stats['hash_restarts'] ?? -1,
+            array_merge($baseLabels, ['type' => 'hash']), 'Total restart count by type', 'counter');
+        $this->addMetric($prefix . 'restarts_total', $stats['manual_restarts'] ?? -1,
+            array_merge($baseLabels, ['type' => 'manual']), 'Total restart count by type', 'counter');
+
+        $this->addMetric($prefix . 'blacklist_misses_total', $stats['blacklist_misses'] ?? -1,
+            $baseLabels, 'Total blacklist misses', 'counter');
+
+        // Ratios (0-1 range)
+        $this->addMetric($prefix . 'blacklist_miss_ratio', $stats['blacklist_miss_ratio'] ?? -1,
+            $baseLabels, 'Blacklist miss ratio (0-1)');
+
+        // Convert hit rate percentage to ratio
+        if (isset($stats['opcache_hit_rate']) && $stats['opcache_hit_rate'] !== -1) {
+            $this->addMetric($prefix . 'hit_ratio',
+                $stats['opcache_hit_rate'] / 100,
+                $baseLabels, 'Cache hit ratio (0-1)');
+        }
+
+        // JIT metrics with proper suffixes
+        $jitStatus = $jit;
+        $this->addMetric($prefix . 'jit_buffer_size_bytes', $jitStatus['buffer_size'] ?? -1,
+            $baseLabels, 'JIT buffer size in bytes');
+        $this->addMetric($prefix . 'jit_buffer_free_bytes', $jitStatus['buffer_free'] ?? -1,
+            $baseLabels, 'JIT buffer free space in bytes');
 
         // Script metrics
         if ($options['scripts'] ?? true) {
@@ -190,14 +263,14 @@ class PrometheusMetricsExporter
                     'script' => $script['full_path'] ?? 'unknown',
                 ]);
 
-                $this->addMetric($prefix . 'script_hits', $script['hits'] ?? -1,
-                    $scriptLabels, 'Script cache hits');
-                $this->addMetric($prefix . 'script_memory_consumption', $script['memory_consumption'] ?? -1,
-                    $scriptLabels, 'Script memory consumption');
-                $this->addMetric($prefix . 'script_last_used_timestamp', $script['last_used_timestamp'] ?? -1,
-                    $scriptLabels, 'Script last used timestamp');
-                $this->addMetric($prefix . 'script_revalidate', $script['revalidate'] ?? -1,
-                    $scriptLabels, 'Script revalidate timestamp');
+                $this->addMetric($prefix . 'script_hits_total', $script['hits'] ?? -1,
+                    $scriptLabels, 'Total script cache hits', 'counter');
+                $this->addMetric($prefix . 'script_memory_bytes', $script['memory_consumption'] ?? -1,
+                    $scriptLabels, 'Script memory consumption in bytes');
+                $this->addMetric($prefix . 'script_last_used_timestamp_seconds', $script['last_used_timestamp'] ?? -1,
+                    $scriptLabels, 'Script last used timestamp (Unix timestamp)');
+                $this->addMetric($prefix . 'script_revalidate_timestamp_seconds', $script['revalidate'] ?? -1,
+                    $scriptLabels, 'Script revalidate timestamp (Unix timestamp)');
             }
         }
     }
